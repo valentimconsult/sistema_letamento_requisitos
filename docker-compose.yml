@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: sistema_bi_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sistema_bi}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - sistema_bi_network
+    restart: unless-stopped
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sistema_bi_backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sistema_bi}
+      - SECRET_KEY=${SECRET_KEY:-sua_chave_secreta_muito_segura}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["http://localhost:4000"]}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - sistema_bi_network
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistema_bi_frontend
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "4000:3000"
+    depends_on:
+      - backend
+    networks:
+      - sistema_bi_network
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Nginx (Proxy Reverso)
+  nginx:
+    image: nginx:alpine
+    container_name: sistema_bi_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - sistema_bi_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  sistema_bi_network:
+    driver: bridge
