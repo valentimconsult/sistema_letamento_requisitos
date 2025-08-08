@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth.tsx';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -6,9 +6,17 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface LogoData {
+  filename: string;
+  url: string;
+  size: number;
+  uploaded_at: string;
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [currentLogo, setCurrentLogo] = useState<LogoData | null>(null);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '📊' },
@@ -17,6 +25,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Usuários', href: '/users', icon: '👥' },
     { name: 'Configurações', href: '/settings', icon: '⚙️' },
   ];
+
+  // Carregar logo atual
+  useEffect(() => {
+    loadCurrentLogo();
+  }, []);
+
+  const loadCurrentLogo = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/upload/logo`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.logos && data.logos.length > 0) {
+          setCurrentLogo(data.logos[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar logo:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -28,10 +60,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Sistema BI - Requisitos
-              </h1>
+            <div className="flex items-center space-x-4">
+              {currentLogo ? (
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${currentLogo.url}`}
+                    alt="Logo do sistema"
+                    className="h-8 w-auto object-contain"
+                  />
+                  <h1 className="text-xl font-semibold text-gray-900">
+                    Sistema BI - Requisitos
+                  </h1>
+                </div>
+              ) : (
+                <h1 className="text-xl font-semibold text-gray-900">
+                  Sistema BI - Requisitos
+                </h1>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
