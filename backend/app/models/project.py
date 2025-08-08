@@ -19,6 +19,7 @@ class Project(Base):
     budget = Column(String(100), nullable=True)
     client_name = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True)
+    logo_url = Column(String(500), nullable=True)  # Novo campo para logo
     
     # Relacionamentos
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
@@ -64,6 +65,7 @@ class Project(Base):
             "budget": self.budget,
             "client_name": self.client_name,
             "is_active": self.is_active,
+            "logo_url": self.logo_url,  # Novo campo
             "created_by": self.created_by,
             "created_by_user": self.created_by_user.to_dict_safe() if self.created_by_user else None,
             "requirements_count": self.requirements_count,
@@ -82,6 +84,7 @@ class Project(Base):
             "status": self.status,
             "priority": self.priority,
             "client_name": self.client_name,
+            "logo_url": self.logo_url,  # Novo campo
             "requirements_count": self.requirements_count,
             "progress_percentage": round(self.progress_percentage, 2),
             "created_at": self.created_at.isoformat() if self.created_at else None

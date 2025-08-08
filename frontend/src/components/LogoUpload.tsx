@@ -6,12 +6,16 @@ import toast from 'react-hot-toast';
 interface LogoUploadProps {
   onUploadSuccess?: (data: any) => void;
   onUploadError?: (error: string) => void;
+  onClose?: () => void;  // Novo prop para fechar modal
+  projectId?: string;    // Novo prop para project_id
   className?: string;
 }
 
 const LogoUpload: React.FC<LogoUploadProps> = ({ 
   onUploadSuccess, 
   onUploadError, 
+  onClose,
+  projectId,
   className = '' 
 }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -43,6 +47,11 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
     try {
       const formData = new FormData();
       formData.append('file', file);
+      
+      // Adicionar project_id se fornecido
+      if (projectId) {
+        formData.append('project_id', projectId);
+      }
 
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/upload/logo`, {
         method: 'POST',
@@ -66,6 +75,13 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
       toast.success('Logo enviada com sucesso!');
       onUploadSuccess?.(data);
       
+      // Fechar modal após upload bem-sucedido
+      if (onClose) {
+        setTimeout(() => {
+          onClose();
+        }, 1000); // Pequeno delay para mostrar o sucesso
+      }
+      
     } catch (error) {
       console.error('Erro no upload:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer upload';
@@ -74,7 +90,7 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [onUploadSuccess, onUploadError]);
+  }, [onUploadSuccess, onUploadError, onClose, projectId]);
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
@@ -146,6 +162,11 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
                   <p className="text-xs text-gray-500 mt-1">
                     PNG, JPG, JPEG, GIF ou SVG (max. 5MB)
                   </p>
+                  {projectId && (
+                    <p className="text-xs text-primary-600 mt-1">
+                      Esta logo sera associada ao projeto selecionado
+                    </p>
+                  )}
                 </div>
               )}
             </div>

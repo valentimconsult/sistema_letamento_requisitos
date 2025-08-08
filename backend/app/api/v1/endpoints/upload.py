@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import os
 import shutil
 import uuid
@@ -11,6 +11,7 @@ import logging
 from app.core.database import get_db
 from app.core.security import get_current_active_user, require_permissions
 from app.models.user import User
+from app.models.project import Project
 from app.core.config import settings
 
 router = APIRouter()
@@ -32,11 +33,13 @@ MAX_LOGO_SIZE = 5 * 1024 * 1024
 @router.post("/logo")
 async def upload_logo(
     file: UploadFile = File(...),
+    project_id: Optional[str] = Form(None),
     current_user: User = Depends(require_permissions(["upload:logo"])),
     db: Session = Depends(get_db)
 ):
     """
     Faz upload de uma logo para o sistema
+    Se project_id for fornecido, associa a logo ao projeto
     """
     try:
         # Validar tipo de arquivo
@@ -71,7 +74,22 @@ async def upload_logo(
         # URL para acessar o arquivo
         file_url = f"/api/v1/upload/logo/{unique_filename}"
         
-        logger.info(f"Logo enviada com sucesso por {current_user.username}: {unique_filename}")
+        # Se project_id foi fornecido, associar logo ao projeto
+        if project_id:
+            project = db.query(Project).filter(Project.id == project_id).first()
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Projeto nao encontrado"
+                )
+            
+            # Atualizar projeto com a nova logo
+            project.logo_url = file_url
+            db.commit()
+            
+            logger.info(f"Logo associada ao projeto {project.name} por {current_user.username}: {unique_filename}")
+        else:
+            logger.info(f"Logo enviada com sucesso por {current_user.username}: {unique_filename}")
         
         return {
             "message": "Logo enviada com sucesso",
@@ -79,6 +97,7 @@ async def upload_logo(
             "original_name": file.filename,
             "size": file.size,
             "url": file_url,
+            "project_id": project_id,
             "uploaded_at": datetime.now().isoformat()
         }
         
